@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 
 	"github.com/saintfish/chardet"
@@ -30,19 +31,40 @@ import (
 type Response struct {
 	// StatusCode is the status code of the Response
 	StatusCode int
+	// Status is the status of the Response
+	Status string
+	// Proto is the protocol of the Response
+	Proto string
+	// ContentLength is the length of the Response
+	ContentLength int64
 	// Body is the content of the Response
 	Body []byte
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
 	// Request is the Request object of the response
 	Request *Request
-	// ResponseDump is the dump of the HTTP response
-	ResponseDump []byte
 	// Headers contains the Response's HTTP headers
 	Headers *http.Header
 	// Trace contains the HTTPTrace for the request. Will only be set by the
 	// collector if Collector.TraceHTTP is set to true.
 	Trace *HTTPTrace
+}
+
+// Dump return the dump of the Response
+func (r *Response) Dump() (dump []byte, err error) {
+	response := &http.Response{
+		Body:          ioutil.NopCloser(bytes.NewReader(r.Body)),
+		Proto:         r.Proto,
+		Status:        r.Status,
+		ContentLength: r.ContentLength,
+	}
+
+	dump, err = httputil.DumpResponse(response, true)
+	if err != nil {
+		return dump, err
+	}
+
+	return dump, nil
 }
 
 // Save writes response body to disk

@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -50,8 +51,8 @@ type Request struct {
 	baseURL   *url.URL
 	// ProxyURL is the proxy address that handles the request
 	ProxyURL string
-	// RequestDump is the dump of the HTTP request
-	RequestDump []byte
+	// ContentLength is the length of the request
+	ContentLength int64
 }
 
 type serializableRequest struct {
@@ -84,6 +85,25 @@ func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
 // Abort cancels the HTTP request when called in an OnRequest callback
 func (r *Request) Abort() {
 	r.abort = true
+}
+
+// Dump return the dump of the Request
+func (r *Request) Dump() (dump []byte, err error) {
+	data, err := ioutil.ReadAll(r.Body)
+	r.Body = bytes.NewReader(data)
+
+	request := &http.Request{
+		Body:          ioutil.NopCloser(bytes.NewReader(data)),
+		ContentLength: r.ContentLength,
+		URL:           r.URL,
+	}
+
+	dump, err = httputil.DumpRequestOut(request, true)
+	if err != nil {
+		return dump, err
+	}
+
+	return dump, nil
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.

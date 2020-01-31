@@ -28,7 +28,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -599,14 +598,15 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	request := &Request{
-		URL:       req.URL,
-		Headers:   &req.Header,
-		Ctx:       ctx,
-		Depth:     depth,
-		Method:    method,
-		Body:      requestData,
-		collector: c,
-		ID:        atomic.AddUint32(&c.requestCount, 1),
+		URL:           req.URL,
+		Headers:       &req.Header,
+		Ctx:           ctx,
+		Depth:         depth,
+		Method:        method,
+		Body:          requestData,
+		collector:     c,
+		ID:            atomic.AddUint32(&c.requestCount, 1),
+		ContentLength: req.ContentLength,
 	}
 
 	c.handleOnRequest(request)
@@ -622,13 +622,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "*/*")
 	}
-
-	dump, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		return err
-	}
-
-	request.RequestDump = dump
 
 	var hTrace *HTTPTrace
 	if c.TraceHTTP {

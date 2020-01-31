@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path"
 	"regexp"
@@ -197,18 +196,10 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		*request = *res.Request
 	}
 
-	var bodyReader io.Reader
+	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
-		res.Body = &readCloser{Reader: io.LimitReader(res.Body, int64(bodySize)), closer: res.Body}
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-
-	dump, err := httputil.DumpResponse(res, true)
-	if err != nil {
-		return nil, err
-	}
-
-	bodyReader = res.Body
-
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(res.Request.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
@@ -224,10 +215,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	}
 
 	return &Response{
-		StatusCode:   res.StatusCode,
-		Body:         body,
-		ResponseDump: dump,
-		Headers:      &res.Header,
+		StatusCode:    res.StatusCode,
+		Status:        res.Status,
+		Proto:         res.Proto,
+		ContentLength: res.ContentLength,
+		Body:          body,
+		Headers:       &res.Header,
 	}, nil
 }
 
